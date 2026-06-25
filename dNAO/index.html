@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>dNAO (web)</title>
+<!-- Must run first: installs COOP/COEP via a service worker so SharedArrayBuffer
+     works on header-less static hosts (GitHub Pages). ?http=true skips it. -->
+<script src="./coi-serviceworker.js"></script>
+<link rel="stylesheet" href="./vendor/xterm.css" />
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; background: #0b0b0e; color: #d7d7da;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  header { padding: 10px 16px; border-bottom: 1px solid #23232a; }
+  header h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .04em; }
+  header span { color: #6f6f78; font-size: 12px; }
+  main { display: flex; gap: 16px; padding: 16px; align-items: flex-start; flex-wrap: wrap; }
+  #panel { width: 300px; flex: 0 0 auto; }
+  #panel fieldset { border: 1px solid #2a2a32; border-radius: 6px; margin: 0 0 12px; padding: 10px 12px; }
+  #panel legend { color: #9a9aa3; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  #panel label { display: block; font-size: 12px; color: #b6b6bd; margin: 8px 0 3px; }
+  #panel input[type=text], #panel select, #panel textarea {
+    width: 100%; box-sizing: border-box; background: #15151a; color: #e6e6ea;
+    border: 1px solid #2f2f38; border-radius: 4px; padding: 5px 7px; font: inherit; font-size: 12px;
+  }
+  #panel textarea { resize: vertical; min-height: 120px; white-space: pre; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .check { display: flex; align-items: center; gap: 7px; margin-top: 8px; }
+  .check input { width: auto; }
+  #start {
+    width: 100%; margin-top: 4px; padding: 9px; font: inherit; font-weight: 600;
+    background: #2d6a4f; color: #eafff4; border: 0; border-radius: 5px; cursor: pointer;
+  }
+  #start:disabled { background: #2a2a32; color: #6f6f78; cursor: default; }
+  #termwrap { flex: 1 1 auto; min-width: 660px; }
+  #terminal { background: #000; padding: 6px; border-radius: 6px; }
+  #status { font-size: 12px; color: #8a8a93; margin-top: 8px; min-height: 16px; }
+  a { color: #6aa9ff; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>dNAO &mdash; WebAssembly build <span>(tty / xterm-pty / ASYNCIFY)</span></h1>
+  </header>
+  <main>
+    <form id="panel" autocomplete="off">
+      <fieldset>
+        <legend>Command-line flags</legend>
+        <label>Player name (<code>-u</code>)</label>
+        <input type="text" id="name" placeholder="(prompt in-game)" />
+        <div class="row">
+          <div>
+            <label>Role (<code>-p</code>)</label>
+            <input type="text" id="role" placeholder="auto" />
+          </div>
+          <div>
+            <label>Race (<code>-r</code>)</label>
+            <input type="text" id="race" placeholder="auto" />
+          </div>
+        </div>
+        <label class="check"><input type="checkbox" id="wizard" /> Wizard mode (<code>-D</code>)</label>
+        <label class="check"><input type="checkbox" id="explore" /> Explore mode (<code>-X</code>)</label>
+        <label>Extra args (space-separated)</label>
+        <input type="text" id="extra" placeholder="e.g. -n" />
+      </fieldset>
+
+      <fieldset>
+        <legend>Runtime options (.dnethackrc)</legend>
+        <textarea id="rc" spellcheck="false">OPTIONS=color,hilite_pet,showexp,time,autodig
+OPTIONS=disclose:+i +a +v +g +c
+OPTIONS=msg_window:reversed
+OPTIONS=!autopickup</textarea>
+      </fieldset>
+
+      <button type="submit" id="start">Start game</button>
+      <div id="status"></div>
+    </form>
+
+    <div id="termwrap">
+      <div id="terminal"></div>
+    </div>
+  </main>
+
+  <!-- xterm.js, xterm-pty and the emscripten module all expose globals -->
+  <script src="./vendor/xterm.js"></script>
+  <script src="./vendor/xterm-pty.js"></script>
+  <script src="./dist/dnethack.js"></script>
+  <script type="module">
+    const initDnethack = window.initDnethack;
+
+    const $ = (id) => document.getElementById(id);
+    const statusEl = $('status');
+    const setStatus = (m) => { statusEl.textContent = m; };
+
+    let started = false;
+
+    $('panel').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (started) return;
+      started = true;
+      $('start').disabled = true;
+      $('start').textContent = 'Running…';
+
+      // ---- build argv ----------------------------------------------------
+      // -d points the game at the preloaded data dir (HACKDIR).
+      const argv = ['-d', '/dnethackdir'];
+      const name = $('name').value.trim();
+      const role = $('role').value.trim();
+      const race = $('race').value.trim();
+      if (name) argv.push('-u', name);
+      if (role) argv.push('-p', role);
+      if (race) argv.push('-r', race);
+      if ($('wizard').checked) argv.push('-D');
+      if ($('explore').checked) argv.push('-X');
+      const extra = $('extra').value.trim();
+      if (extra) for (const a of extra.split(/\s+/)) argv.push(a);
+
+      const rc = $('rc').value.replace(/\r\n/g, '\n');
+
+      // ---- terminal + pty ------------------------------------------------
+      const term = new Terminal({
+        cols: 80, rows: 24, fontSize: 15,
+        fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
+        theme: { background: '#000000' },
+        cursorBlink: true, scrollback: 0,
+      });
+      term.open($('terminal'));
+      term.focus();
+      const { master, slave } = openpty();
+      term.loadAddon(master);
+
+      // Route Ctrl+<letter> straight to the game as its control byte, so dNAO's
+      // control commands work (e.g. ^V levelport, ^F/^O wizard maps, ^X attrs)
+      // instead of being swallowed by xterm/the browser. In particular plain
+      // Ctrl+V would otherwise be treated as clipboard paste, which never
+      // delivers ^V to the game and can wedge input.
+      //   - ^C is left alone so it can still interrupt.
+      //   - Ctrl+Shift+V (and right-click) still paste normally.
+      //   - Browser-reserved combos cannot be reclaimed by any web page:
+      //     Ctrl+T (new tab), Ctrl+W (close tab), Ctrl+N (new window). For
+      //     those, use dNAO's extended-command equivalents (e.g. #levelport).
+      let suppressPaste = false;
+      term.attachCustomKeyEventHandler((e) => {
+        if (e.type !== 'keydown') return true;
+        if (e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && /^[a-z]$/i.test(e.key)) {
+          const letter = e.key.toLowerCase();
+          if (letter === 'c') return true;          // keep ^C for interrupt
+          e.preventDefault();
+          // cancel only the paste this same Ctrl+V might trigger; clear the
+          // flag after this task so a later Ctrl+Shift+V still pastes.
+          if (letter === 'v') { suppressPaste = true; setTimeout(() => { suppressPaste = false; }, 0); }
+          // inject the control byte into the pty's line discipline directly
+          master.ldisc.writeFromLower([letter.charCodeAt(0) - 96]);
+          return false;                             // don't let xterm also handle it
+        }
+        return true;
+      });
+      if (term.textarea) {
+        // capture phase so this runs before xterm's own paste handler
+        term.textarea.addEventListener('paste', (e) => {
+          if (suppressPaste) { e.preventDefault(); e.stopImmediatePropagation(); suppressPaste = false; }
+        }, true);
+      }
+
+      // exposed for the automated boot test (harmless in normal use)
+      window.__dnao = { term, slave, argv };
+
+      setStatus('Loading WebAssembly…');
+
+      const Module = await initDnethack({
+        pty: slave,
+        locateFile: (path) => './dist/' + path,
+        print:    (t) => console.log(t),
+        printErr: (t) => console.warn(t),
+        preRun: [(M) => {
+          const FS = M.FS;
+          const mkdir = (p) => { try { FS.mkdir(p); } catch (_) {} };
+          // config file at the default emscripten HOME (/home/web_user)
+          mkdir('/home'); mkdir('/home/web_user');
+          FS.writeFile('/home/web_user/.dnethackrc', rc);
+          // persist saves across reloads via IndexedDB
+          mkdir('/dnethackdir'); mkdir('/dnethackdir/save');
+          FS.mount(M.IDBFS, {}, '/dnethackdir/save');
+          M.addRunDependency('idbfs-load');
+          FS.syncfs(true, () => M.removeRunDependency('idbfs-load'));
+        }],
+      });
+
+      // flush saves to IndexedDB on exit
+      const persist = () => new Promise((res) => Module.FS.syncfs(false, res));
+
+      setStatus('Running. Saves persist in this browser.');
+      try {
+        Module.callMain(argv);
+      } catch (err) {
+        if (err && err.name === 'ExitStatus') {
+          setStatus('Game exited (code ' + err.status + ').');
+        } else {
+          console.error(err);
+          setStatus('Crashed: ' + err);
+        }
+      }
+      await persist();
+    });
+  </script>
+</body>
+</html>
