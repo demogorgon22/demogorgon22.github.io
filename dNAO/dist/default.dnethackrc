@@ -1,4 +1,4 @@
-OPTIONS=color,hilite_pet,time
+OPTIONS=color,hilite_pet
 OPTIONS=delay_length:short
 OPTIONS=monsters:abcdefghijklmnopqrstuvwxyz79ABCDEFGHIJKLMNOPQRSTUVWXYZ@86'&;:{"~m
 
