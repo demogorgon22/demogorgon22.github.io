@@ -204,7 +204,7 @@ Module['FS_createPath']("/", "dnethackdir", true, true);
     }
 
     }
-    loadPackage({"files": [{"filename": "/dnethackdir/license", "start": 0, "end": 4875}, {"filename": "/dnethackdir/livelog", "start": 4875, "end": 4875}, {"filename": "/dnethackdir/logfile", "start": 4875, "end": 4875}, {"filename": "/dnethackdir/nhdat", "start": 4875, "end": 2185310}, {"filename": "/dnethackdir/perm", "start": 2185310, "end": 2185310}, {"filename": "/dnethackdir/record", "start": 2185310, "end": 2185310}, {"filename": "/dnethackdir/xlogfile", "start": 2185310, "end": 2185310}], "remote_package_size": 2185310});
+    loadPackage({"files": [{"filename": "/dnethackdir/license", "start": 0, "end": 4875}, {"filename": "/dnethackdir/livelog", "start": 4875, "end": 4875}, {"filename": "/dnethackdir/logfile", "start": 4875, "end": 4875}, {"filename": "/dnethackdir/nhdat", "start": 4875, "end": 2013278}, {"filename": "/dnethackdir/perm", "start": 2013278, "end": 2013278}, {"filename": "/dnethackdir/record", "start": 2013278, "end": 2013278}, {"filename": "/dnethackdir/xlogfile", "start": 2013278, "end": 2013278}], "remote_package_size": 2013278});
 
   })();
 

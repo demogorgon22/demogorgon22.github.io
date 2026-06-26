@@ -37,7 +37,18 @@
   }
   #start:disabled { background: #2a2a32; color: #6f6f78; cursor: default; }
   #termwrap { flex: 1 1 auto; min-width: 660px; }
+  #fsbar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  #fs {
+    font: inherit; font-size: 12px; padding: 5px 10px; cursor: pointer;
+    background: #1c1c22; color: #d7d7da; border: 1px solid #2f2f38; border-radius: 5px;
+  }
+  #fs:hover { background: #23232a; }
+  #fshint { font-size: 11px; color: #8a8a93; }
   #terminal { background: #000; padding: 6px; border-radius: 6px; }
+  /* center the 80x24 terminal on black when the wrapper is fullscreen */
+  #termwrap:fullscreen { background: #000; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; }
+  #termwrap:fullscreen #fsbar { position: fixed; top: 8px; right: 12px; margin: 0; opacity: .5; }
   #status { font-size: 12px; color: #8a8a93; margin-top: 8px; min-height: 16px; }
   a { color: #6aa9ff; }
 </style>
@@ -70,10 +81,8 @@
 
       <fieldset>
         <legend>Runtime options (.dnethackrc)</legend>
-        <textarea id="rc" spellcheck="false">OPTIONS=color,hilite_pet,showexp,time,autodig
-OPTIONS=disclose:+i +a +v +g +c
-OPTIONS=msg_window:reversed
-OPTIONS=!autopickup</textarea>
+        <textarea id="rc" spellcheck="false"># loading default from dist/default.dnethackrc ...
+OPTIONS=color,time,!autopickup</textarea>
       </fieldset>
 
       <button type="submit" id="start">Start game</button>
@@ -81,6 +90,10 @@ OPTIONS=!autopickup</textarea>
     </form>
 
     <div id="termwrap">
+      <div id="fsbar">
+        <button type="button" id="fs">⛶ Fullscreen</button>
+        <span id="fshint"></span>
+      </div>
       <div id="terminal"></div>
     </div>
   </main>
@@ -97,6 +110,42 @@ OPTIONS=!autopickup</textarea>
     const setStatus = (m) => { statusEl.textContent = m; };
 
     let started = false;
+
+    // Default rc is a static file (dist/default.dnethackrc) fetched at load, so
+    // it can be edited in the deployed artifact without rebuilding. The textarea
+    // stays editable for per-session overrides.
+    fetch('./dist/default.dnethackrc')
+      .then((r) => (r.ok ? r.text() : Promise.reject('HTTP ' + r.status)))
+      .then((txt) => { $('rc').value = txt; })
+      .catch((e) => console.warn('default rc not loaded, using fallback:', e));
+
+    // Fullscreen + Keyboard Lock: the only way a web page can receive the
+    // browser-reserved combos (Ctrl+T new tab, Ctrl+W close tab, Ctrl+N new
+    // window) and Escape. navigator.keyboard.lock() captures every key while
+    // fullscreen and routes them to the page, where our Ctrl-key handler turns
+    // them into control bytes for dNAO. Chromium-only; Firefox/Safari lack it,
+    // so there those combos still belong to the browser (use #extended commands).
+    const kbLock = navigator.keyboard && navigator.keyboard.lock;
+    $('fshint').textContent = kbLock
+      ? 'captures Ctrl+T / Ctrl+W / Ctrl+N and Esc; hold Esc to exit'
+      : 'this browser cannot capture Ctrl+T/W/N (Chromium only)';
+    const fsTarget = $('termwrap');
+    $('fs').addEventListener('click', async () => {
+      try {
+        if (!document.fullscreenElement) {
+          await fsTarget.requestFullscreen();
+          if (kbLock) await navigator.keyboard.lock(); // all keys, incl. reserved + Esc
+          window.__dnao && window.__dnao.term && window.__dnao.term.focus();
+        } else {
+          await document.exitFullscreen();
+        }
+      } catch (err) { console.warn('fullscreen/keyboard-lock:', err); }
+    });
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && navigator.keyboard && navigator.keyboard.unlock)
+        navigator.keyboard.unlock();
+      else window.__dnao && window.__dnao.term && window.__dnao.term.focus();
+    });
 
     $('panel').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -122,6 +171,12 @@ OPTIONS=!autopickup</textarea>
       const rc = $('rc').value.replace(/\r\n/g, '\n');
 
       // ---- terminal + pty ------------------------------------------------
+      // Fixed 80x24. A larger terminal doesn't work under PROXY_TO_PTHREAD:
+      // xterm-pty only proxies the read path to the main thread, not the TTY
+      // ioctls, so the game's worker can't read the real size via TIOCGWINSZ
+      // (it falls back to 80x24), and resizing after start raises SIGWINCH,
+      // whose handler traps in the worker. Communicating size would need a
+      // rebuild (e.g. read LINES/COLUMNS env in the WEB_BUILD termcap fallback).
       const term = new Terminal({
         cols: 80, rows: 24, fontSize: 15,
         fontFamily: 'ui-monospace, Menlo, Consolas, monospace',
