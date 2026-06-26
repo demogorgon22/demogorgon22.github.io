@@ -1,0 +1,111 @@
+OPTIONS=color,hilite_pet
+OPTIONS=delay_length:short
+OPTIONS=monsters:abcdefghijklmnopqrstuvwxyz79ABCDEFGHIJKLMNOPQRSTUVWXYZ@86'&;:{"~m
+
+OPTIONS=pickup_thrown
+OPTIONS=pickup_types:$|
+#AUTOPICKUP_EXCEPTION=">.*"
+AUTOPICKUP_EXCEPTION="<.* Sunbeam"
+
+OPTIONS=pickup_burden:unencumbered
+OPTIONS=menu_glyphs
+
+OPTIONS=pokedex:stats generation weight resists conveys movement thinking biology mechanics race vision attacks
+OPTIONS=number_pad:0,showbuc
+OPTIONS=hilite_obj_piles
+OPTIONS=time,use_darkgray,paranoid_quit,paranoid_remove
+OPTIONS=lit_corridor
+OPTIONS=!UTF8graphics
+OPTIONS=block_forget_map
+OPTIONS=statuscolors
+OPTIONS=!autopickup
+
+
+## HP
+STATUSCOLOR=hp%100=green,hp%66=yellow,hp%50=orange
+STATUSCOLOR=hp%33=red&bold,hp%15:red&inverse,hp%0:red&inverse&blink
+## Pw
+#STATUSCOLOR=pw%100=green,pw%66=yellow,pw%50:orange,pw%33=red&bold
+## HP & Pw also support exact numbers, for example:
+#STATUSCOLOR=hp.1:red&inverse,hp<8:red,hp>50:grey
+## Carry
+#STATUSCOLOR=burdened:yellow,stressed:orange,strained:red&bold
+#STATUSCOLOR=overtaxed:red&inverse,overloaded:red&inverse&blink
+## Hunger
+#STATUSCOLOR=satiated:yellow,hungry:orange,weak:red&bold
+#STATUSCOLOR=fainting:red&inverse,fainted:red&inverse&blink
+## Mental
+#STATUSCOLOR=hallu:yellow,conf:orange,stun:red&bold
+## Health
+#STATUSCOLOR=ill:red&inverse,foodpois:red&inverse,slime:red&inverse
+#
+#
+## Colored menus. Regular expressions allowed.
+OPTIONS=menucolors
+MENUCOLOR=" blessed "=green
+MENUCOLOR=" holy "=green
+MENUCOLOR=" consecrated "=green
+MENUCOLOR=" cursed "=red
+MENUCOLOR=" unholy "=red
+MENUCOLOR=" cursed .* (being worn)"=orange&underline
+
+#msg stops
+MSGTYPE=stop "You don't feel very well."
+MSGTYPE=stop "You are turning a little *"
+MSGTYPE=stop "Your limbs are getting oozy."
+MSGTYPE=stop "Your skin begins to peel away."
+MSGTYPE=stop "You are turning into a green slime."
+MSGTYPE=stop "* hits you with the (cockatrice|chickatrice) corpse."
+MSGTYPE=stop "You are slowing down."
+MSGTYPE=stop "Your limbs are stiffening."
+MSGTYPE=stop "It constricts your throat!"
+MSGTYPE=stop "You find it hard to breathe."
+MSGTYPE=stop "You're gasping for air."
+MSGTYPE=stop "Your blood is having trouble reaching your brain."
+MSGTYPE=stop "You can no longer breathe."
+MSGTYPE=stop "You're turning blue."
+MSGTYPE=stop "Your consciousness is fading."
+MSGTYPE=stop "You feel deathly sick."
+MSGTYPE=stop "You feel much worse."
+MSGTYPE=stop "You feel even worse."
+MSGTYPE=stop "* reaches out, and you feel fever and chills."
+MSGTYPE=stop "* reaches out, and your body shrivels."
+
+# vibrating square
+MSGTYPE=stop "You feel a strange vibration *"
+
+# enhance
+MSGTYPE=stop "You feel more confident *"
+
+# status effects
+MSGTYPE=stop "You feel hungry."
+MSGTYPE=stop "You are beginning to feel hungry."
+MSGTYPE=stop "You are getting the munchies."
+MSGTYPE=stop "You feel weak now."
+MSGTYPE=stop "You still have the munchies."
+MSGTYPE=stop "You feel weak."
+MSGTYPE=stop "You are beginning to feel weak."
+MSGTYPE=stop "The munchies are interfering with your motor capabilities."
+MSGTYPE=stop "* needs food, badly!"
+MSGTYPE=stop "* yanks * to the floor!"
+MSGTYPE=stop "You only feel hungry now."
+MSGTYPE=stop "You now have a lesser case of the munchies."
+MSGTYPE=stop "You faint from lack of food."
+MSGTYPE=stop "You regain consciousness."
+MSGTYPE=stop "You die from starvation."
+MSGTYPE=stop "You die from hunger and exhaustion."
+MSGTYPE=stop "You feel deathly sick."
+MSGTYPE=stop "You feel even worse."
+MSGTYPE=stop "You feel much worse."
+MSGTYPE=stop "You die from your illness."
+MSGTYPE=stop "You feel feverish."
+
+# (potential) inventory cursing
+MSGTYPE=stop "You feel a malignant aura surround *"
+
+# near-death
+MSGTYPE=stop "You hear the howling of the CwnAnnwn..."
+MSGTYPE=stop ", your life force is running out"
+MSGTYPE=stop ", all your powers will be lost..."
+MSGTYPE=stop "You hear the wailing of the Banshee..."
+MSGTYPE=stop " is about to die."
